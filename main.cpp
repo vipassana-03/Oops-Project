@@ -3,12 +3,22 @@
 #include <unordered_map>
 #include <string>
 #include <chrono> //chrono is used to use the system time
+#include <iomanip>
+#include <sstream>
 
 using namespace std;
+enum class VehicleType {TwoWheeler, FourWheeler}; // We use an enum to standardize inputs, remove errors with typos and stuff
 static long long nowMs() {
     using namespace std::chrono;
     return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count(); //To count how much time its been since the ticket started
                                                                                         // makes future computation easy.
+}
+static string formatTime(long long ms) {
+    time_t tt = (time_t)(ms / 1000);
+    tm* lt = localtime(&tt);
+    ostringstream out;
+    out << put_time(lt, "%Y-%m-%d %H:%M:%S");
+    return out.str();
 }
 class ParkingLot {
     //Ticket holds ticket details, ie, the id of the ticket specifically, the License plate of the ticket, the parking slot its in, and the amount of time its been in the parking.
@@ -16,18 +26,37 @@ class ParkingLot {
         string ticketId;
         string plate;
         int slotId;
+        VehicleType type;
         long long entryMs; //This needs to be in long long since we're storing time in milliseconds, so 64 bit number is needed
+
     };
     int nSlots; //total number of slots in the parking lot
     vector<bool> occupied;
     vector<string> slotPlate;
     unordered_map<string, Ticket> activeTickets; //creates a map for each ticket and each car number
     int nextTicketNo = 1; //Should be edited, technically issuing ticket numbers sequentially is bad cybersecurity practice.
+    void outputReciept(const Ticket& t, long long exitMs, long long diffMs, long long billableHours, long long fee){
+        long long totalSecs = diffMs / 1000;
+        long long mins = totalSecs / 60;
+        long long secs = totalSecs % 60;
+
+        cout << "\n===== RECEIPT =====\n";
+        cout << "Ticket ID   : " << t.ticketId << "\n";
+        cout << "Plate       : " << t.plate << "\n";
+        cout << "Type        : " << (t.type == VehicleType::TwoWheeler ? "2W" : "4W") << "\n";
+        cout << "Slot        : " << (t.slotId+1)<< "\n";
+        cout << "Time In     : " << formatTime(t.entryMs) << "\n";
+        cout << "Time Out    : " << formatTime(exitMs) << "\n";
+        cout << "Duration    : " << mins << " min " << secs << " sec\n";
+        cout << "Billed Hours: " << billableHours << "\n";
+        cout << "Amount      : Rs " << fee << "\n";
+        cout << "===================\n"; //We could use iomanip here to output this without having to do this manually
+    }
 public:
     ParkingLot(int slots) : nSlots(slots), occupied(slots, false), slotPlate(slots, "") {} //Constructor to actually create parking lots, and set the value of all to empty.
                                                                     // occupied(slots, false) means make a vector of length slots, and fill it with false (all free).
                                                                     // slotPlate initializes an empty vector for the License plate in each slot (needed for status)
-    string park(const string& plate) { //const string& plate basically means that even though we're accessing plate directly and not through a copy, we can't modify it.
+    string park(const string& plate, VehicleType type) { //const string& plate basically means that even though we're accessing plate directly and not through a copy, we can't modify it.
         int slot = -1;
         for (int i = 0; i < nSlots; i++) {
             if (!occupied[i]) { slot = i; break; }
@@ -39,11 +68,27 @@ public:
         Ticket t;
         t.ticketId = "T" + to_string(nextTicketNo++);
         t.plate = plate;
+        t.type = type;
         t.slotId = slot;
         slotPlate[slot] = plate;
         t.entryMs = nowMs();
         activeTickets[t.ticketId] = t;
         return t.ticketId;
+    }
+    int computeBill(VehicleType t, long long h){
+        int price=0;
+        if (t == VehicleType::FourWheeler){
+            if (h==0) return 0;
+            if (h==1) return 100;
+            if (h<=3) return (100+(h-1)*300);
+            else return (100+2*300+(h-3)*500);
+        }
+        else {
+            if (h==0) return 0;
+            if (h==1) return 50;
+            if (h<=3) return (50+(h-1)*100);
+            else return (50+2*100+(h-3)*250);
+        }
     }
 
     bool unpark(const string& ticketId) {     // Returns true if ticket existed and car was removed, false otherwise.
@@ -52,8 +97,17 @@ public:
                                             //is not found, or return 403 if the ID exists but couldn't remove it for some reason and so on.
         auto it = activeTickets.find(ticketId);
         if (it == activeTickets.end()) return false; // Ticket does not exist (invalid ID)
-        // Free the slot that this ticket was occupying
-        occupied[it->second.slotId] = false; //"second." means go to the second item in the map, which is the ticket struct and .slotId finds the data in the struct
+        Ticket t = it->second; //create a copy of ticket before we erase it
+        long long exitMs = nowMs();
+        long long diffMs = exitMs - t.entryMs;
+        long long billableHours = diffMs / 3600000;  // floor hours
+        long long fee = computeBill(t.type, billableHours);
+        long long totalSecs = diffMs / 1000;
+        long long mins = totalSecs / 60;
+        long long secs = totalSecs % 60;
+        outputReciept(t, exitMs, diffMs, billableHours, fee);
+        occupied[it->second.slotId] = false; // Free the slot that this ticket was occupying
+                                            //"second." means go to the second item in the map, which is the ticket struct and .slotId finds the data in the struct
         slotPlate[it->second.slotId] = "";
         activeTickets.erase(it);
         return true;
@@ -89,7 +143,7 @@ public:
 
                 cout << "Ticket ID: " << t.ticketId << "\n";
                 cout << "Slot: " << t.slotId << "\n";
-                cout << "Time parked: " << mins << " minute(s) " << secs << " second(s)\n";
+                cout << "Time parked: " << mins << " minute(s) " << secs << " second(s)\n" << endl;
                 return true;
             }
         }
@@ -103,14 +157,27 @@ int main() {
 
     while (choice != 5) {
         cout << "\n1) Park\n2) Unpark\n3) Status\n4) Ticket information for a specific license plate\n5) End\nChoice: ";
-        cin >> choice;
+        if (!(cin >> choice)) {//Adding this because it kept crashing when closed with ctrl + c
+            cin.clear();
+            cin.ignore(100000, '\n');
+            break;
+        }
         //Normal switch case menu based system.
         switch (choice) {
             case 1: {
                 string plate;
+                int typeInput;
                 cout << "Enter License Plate: ";
                 cin >> plate;
-                string ticketId = lot.park(plate); //Uses the park method to write the license plate into a lot.
+                cout << "Enter Vehicle Type(1 for Two Wheeler, 2 for Four Wheeler): ";
+                while (!(cin >> typeInput) || (typeInput != 1 && typeInput != 2)) {
+                    cin.clear();
+                    int ch;
+                    while ((ch = cin.get()) != '\n' && ch != EOF) {} // discard bad line
+                    cout << "Invalid. Enter 1 (Two Wheeler) or 2 (Four Wheeler): ";
+                }
+                VehicleType type = (typeInput == 1) ? VehicleType::TwoWheeler : VehicleType::FourWheeler;
+                string ticketId = lot.park(plate, type); //Uses the park method to write the license plate and vehicle type into a lot.
                 if (ticketId == "") cout << "Parking full.\n";
                 else cout << "Parked.\nTicket ID: " << ticketId << "\n";
                 break;
@@ -138,5 +205,6 @@ int main() {
             default:
                 cout << "Invalid choice.\n";
         }
+        cout<<endl;
     }
 }
