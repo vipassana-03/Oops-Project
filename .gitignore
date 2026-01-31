@@ -1,2 +1,9 @@
-#Ignore json files
 *.json
+*.cbp
+*.depend
+*.layout
+*.exe
+*.o
+bin/
+obj/
+logs/

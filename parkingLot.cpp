@@ -3,6 +3,8 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <ctime>
+#include <filesystem>
 #include "parkingUtils.h"
 ParkingLot::ParkingLot(int slots)
     : nSlots(slots), occupied(slots, false), slotPlate(slots, "") {} //Constructor to actually create parking lots, and set the value of all to empty.
@@ -130,7 +132,14 @@ void ParkingLot::outputReceipt(const Ticket& t, long long exitMs, long long diff
 }
 
 void ParkingLot::logVisit(const Ticket& t, long long exitMs, long long diffMs, long long fee) const {
-    const std::string logFile = "log.json"; //where logs are stored
+    std::filesystem::create_directories("logs");
+    time_t tt = static_cast<time_t>(exitMs / 1000);
+    tm* lt = localtime(&tt);
+    std::ostringstream fileName;
+    fileName << "logs/log_" << (lt->tm_year + 1900) << "_"
+             << std::setfill('0') << std::setw(2) << (lt->tm_mon + 1) << "_"
+             << lt->tm_mday << ".json";
+    const std::string logFile = fileName.str(); //where logs are stored
     std::ostringstream entry; // Sort of like the StringBuffer in Java, you can write to it without outputting anything instantly
     entry << "  {\n"
           << "    \"plate\": \"" << jsonEscape(t.plate) << "\",\n"  //json escape is used to make sure stuff like " or / dont break the code,
