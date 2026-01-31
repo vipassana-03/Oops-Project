@@ -12,10 +12,22 @@
 
 using namespace std;
 enum class VehicleType {TwoWheeler, FourWheeler}; // We use an enum to standardize inputs, remove errors with typos and stuff
+static long long timeScale = 1; //Adding this to scale time up further, 1 second = 5 minutes, just to make the payment system easier to test.
+static long long realStartMs = 0;
+static long long scaledStartMs = 0;
+static void setTimeScale(long long scale) {
+    timeScale = scale;
+    using namespace std::chrono;
+    realStartMs = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    scaledStartMs = realStartMs;
+}
 static long long nowMs() {
     using namespace std::chrono;
-    return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count(); //To count how much time its been since the ticket started
-                                                                                        // makes future computation easy.
+    long long realNow = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    if (timeScale == 1) {
+        return realNow;
+    }
+    return scaledStartMs + (realNow - realStartMs) * timeScale; //Translates the epoch time to scaled time.
 }
 static string formatTime(long long ms) {
     time_t tt = (time_t)(ms / 1000);
@@ -245,6 +257,21 @@ public:
 };
 
 int main() {
+    char testChoice = '\0';
+    cout << "Test mode? (y/n): ";
+    while (!(cin >> testChoice) || (tolower(static_cast<unsigned char>(testChoice)) != 'y'
+        && tolower(static_cast<unsigned char>(testChoice)) != 'n')) {//Checking whether or not to run in test mode
+        cin.clear();
+        int ch;
+        while ((ch = cin.get()) != '\n' && ch != EOF) {}
+        cout << "Invalid. Enter y or n: ";
+    }
+    if (tolower(static_cast<unsigned char>(testChoice)) == 'y') {
+        setTimeScale(300);
+        cout << "Test mode enabled: 1 second = 5 minutes.\n";
+    } else {
+        setTimeScale(1);
+    }
     int lotSize = 0;
     cout << "Enter number of parking slots: ";
     while (!(cin >> lotSize) || lotSize <= 0) {
