@@ -5,6 +5,7 @@
 #include <chrono> //chrono is used to use the system time
 #include <iomanip>
 #include <sstream>
+#include <ctime>
 
 using namespace std;
 enum class VehicleType {TwoWheeler, FourWheeler}; // We use an enum to standardize inputs, remove errors with typos and stuff
@@ -35,7 +36,7 @@ class ParkingLot {
     vector<string> slotPlate;
     unordered_map<string, Ticket> activeTickets; //creates a map for each ticket and each car number
     int nextTicketNo = 1; //Should be edited, technically issuing ticket numbers sequentially is bad cybersecurity practice.
-    void outputReciept(const Ticket& t, long long exitMs, long long diffMs, long long billableHours, long long fee){
+    void outputReceipt(const Ticket& t, long long exitMs, long long diffMs, long long billableHours, long long fee){
         long long totalSecs = diffMs / 1000;
         long long mins = totalSecs / 60;
         long long secs = totalSecs % 60;
@@ -75,19 +76,18 @@ public:
         activeTickets[t.ticketId] = t;
         return t.ticketId;
     }
-    int computeBill(VehicleType t, long long h){
-        int price=0;
-        if (t == VehicleType::FourWheeler){
+    int computeBill(VehicleType t, long long h) {
+        if (t == VehicleType::FourWheeler) {
             if (h==0) return 0;
             if (h==1) return 100;
             if (h<=3) return (100+(h-1)*300);
-            else return (100+2*300+(h-3)*500);
+            return (100+2*300+(h-3)*500);
         }
         else {
             if (h==0) return 0;
             if (h==1) return 50;
             if (h<=3) return (50+(h-1)*100);
-            else return (50+2*100+(h-3)*250);
+            return (50+2*100+(h-3)*250);
         }
     }
 
@@ -102,10 +102,7 @@ public:
         long long diffMs = exitMs - t.entryMs;
         long long billableHours = diffMs / 3600000;  // floor hours
         long long fee = computeBill(t.type, billableHours);
-        long long totalSecs = diffMs / 1000;
-        long long mins = totalSecs / 60;
-        long long secs = totalSecs % 60;
-        outputReciept(t, exitMs, diffMs, billableHours, fee);
+        outputReceipt(t, exitMs, diffMs, billableHours, fee);
         occupied[it->second.slotId] = false; // Free the slot that this ticket was occupying
                                             //"second." means go to the second item in the map, which is the ticket struct and .slotId finds the data in the struct
         slotPlate[it->second.slotId] = "";
@@ -122,9 +119,9 @@ public:
 
         for (int i = 0; i < (int)slotPlate.size(); i++) { //We cast the .size method to int because it outputs an unsigned integer rather than an int type
             if (slotPlate[i] == "") { //Just checks whether or not the string is empty
-                cout << "Slot " << i << ": Empty\n";
+                cout << "Slot " << (i+1) << ": Empty\n";
             } else {
-            cout << "Slot " << i << ": " << slotPlate[i] << "\n";
+            cout << "Slot " << (i+1) << ": " << slotPlate[i] << "\n";
             }
         }
     }
@@ -142,7 +139,7 @@ public:
                 long long secs = totalSecs % 60;
 
                 cout << "Ticket ID: " << t.ticketId << "\n";
-                cout << "Slot: " << t.slotId << "\n";
+                cout << "Slot: " << (t.slotId+1) << "\n";
                 cout << "Time parked: " << mins << " minute(s) " << secs << " second(s)\n" << endl;
                 return true;
             }
@@ -178,7 +175,7 @@ int main() {
                 }
                 VehicleType type = (typeInput == 1) ? VehicleType::TwoWheeler : VehicleType::FourWheeler;
                 string ticketId = lot.park(plate, type); //Uses the park method to write the license plate and vehicle type into a lot.
-                if (ticketId == "") cout << "Parking full.\n";
+                if (ticketId.empty()) cout << "Parking full.\n";
                 else cout << "Parked.\nTicket ID: " << ticketId << "\n";
                 break;
             }
