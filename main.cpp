@@ -74,14 +74,35 @@ public:
             }
         }
     }
+    bool checkByPlate(const string& plate) const{   //the second const here signifies that this function doesn't modify the parking lot object, just reads it
+        for (const auto& kv : activeTickets) {  //The auto keyword here means that the compiler will decide the type of the variable kv(key value)
+                                                //The for loop loops through every element in the map, and is a pair of <id> and <struct>, where
+                                                //the struct is ticket. so kv.first refers to ticketId, and kv.second refers to the actual ticket struct.
+                                                //Currently this only works for currently active cars, but once we have a json file for logging, we can update
+                                                //this to look through the json file so we can do stuff like showing all the times a single car has actually entered
+            const Ticket& t = kv.second;
+            if (t.plate == plate) {
+                long long diffMs = nowMs() - t.entryMs;
+                long long totalSecs = diffMs / 1000;
+                long long mins = totalSecs / 60;
+                long long secs = totalSecs % 60;
+
+                cout << "Ticket ID: " << t.ticketId << "\n";
+                cout << "Slot: " << t.slotId << "\n";
+                cout << "Time parked: " << mins << " minute(s) " << secs << " second(s)\n";
+                return true;
+            }
+        }
+        return false;
+    }
 };
 
 int main() {
     ParkingLot lot(2); //Should probably take input from the user in order to find out how large their parking lot is, or atleast hold 10 in a macro so that it's editable
     int choice = 0;
 
-    while (choice != 4) {
-        cout << "\n1) Park\n2) Unpark\n3) Status\n4) End\nChoice: ";
+    while (choice != 5) {
+        cout << "\n1) Park\n2) Unpark\n3) Status\n4) Ticket information for a specific license plate\n5) End\nChoice: ";
         cin >> choice;
         //Normal switch case menu based system.
         switch (choice) {
@@ -105,7 +126,14 @@ int main() {
             case 3:
                 lot.status();
                 break;
-            case 4:
+            case 4: {
+                string plate;
+                cout<<"Enter License Plate: ";
+                cin>>plate;
+                if(!lot.checkByPlate(plate)) cout<<"Plate not found.\n";
+                break;
+            }
+            case 5:
                 break;
             default:
                 cout << "Invalid choice.\n";
