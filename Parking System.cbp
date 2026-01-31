@@ -21,6 +21,10 @@
 		</Build>
 		<Unit filename="Models.h" />
 		<Unit filename="main.cpp" />
+		<Unit filename="parkingLot.cpp" />
+		<Unit filename="parkingLot.h" />
+		<Unit filename="parkingUtils.cpp" />
+		<Unit filename="parkingUtils.h" />
 		<Extensions />
 	</Project>
 </CodeBlocks_project_file>
